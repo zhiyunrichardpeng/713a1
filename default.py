@@ -13,129 +13,75 @@ class Segment:
 
     def segment(self, text):
         "Return a list of words that is the best segmentation of text."
-        flag = 1
 
         if not text: return []
-        segmentation = [w for w in text]  # segment each char into a word
-        word_init = text[0]
+        # segmentation = [w for w in text]  # segment each char into a word
+        # word_init = text[0]
+        
+        ## Initialize the heap ##
+        heap=[]
+        heap = self.MatchWords(0, text)
+        heap.sort(key=lambda a: a[2])
 
-        if flag == 1:
-            flag = 0
-            ## Initialize the heap ##
+        chart = [None] * len(text)
 
-            chart = [None] * len(text)
-
-            Phy = None
-            #             print('word_init', word_init)
-            #             print('self.Pw(word_init)', log10(self.Pw(word_init)))
-            heap = []
-
-            newWordList = []
-            # count=0
-            for i in range(0, len(text)):
-                #                     print('text[i:i+count]',text[endindex+1:i+1])
-                newWordList.append(text[0:i + 1])
-
-            #             newWordList = newWordList[::-1]
-            for word in newWordList:
-                newentry = (word, 0, log10(self.Pw(word)), None)
-                if newentry not in heap:
-                    heap.append(newentry)
-            heap.sort(key=lambda a: a[2])
-            # print('heap after init', heap)
-            #             heap.insert(0,(word_init, 0, log10(self.Pw(word_init)), Phy))
-            chart[0] = (heap[0])
-            #             print('heap',heap)
-            #             print('heap top one',heap[-1])
-
-            ## Iteratively fill in chart[i] for all i ##
-            while (len(heap) != 0):
-                entry = heap[-1]
-                heap = heap[:-1]
-
-                #                 chart = [entry]
-
-                currentWord = entry[0]
-                endindex = entry[1] + len(currentWord) - 1
-                #                 entry[1] = endindex
-                print('Adding : ', currentWord, log10(self.Pw(currentWord)))
-                print('toprocess: chartEntry (start=%s, end=%d logprob=%f, backptr=%s)' % (
-                entry[0], entry[1] + 1, entry[2], str(entry[3])))
-                print('pop: word=%s', entry[0], 'logProb', log10(self.Pw(entry[0])))
-
-                #                 print('endIndex=', endindex, 'newEntry=chartEntry', chart)
-                print('endIndex= %d : newEntry: chartEntry (start=%s, end=%d logprob=%f, backptr=%s)' % (
-                endindex, entry[0], entry[1] + 1, entry[2], str(entry[3])))
-                #                 print('chart No.', endindex, 'chartEntry', chart)
-
-                if chart[endindex] != None and chart[endindex][
-                    3] != None and endindex != 0:  # endindex!=0:  # entry[3]!=-1  #and chart[endindex][3]!= 0
-                    #                     index = chart[endindex][3]
-                    preventry = chart[chart[endindex][3]]
-                    # if entry[2]>chart[endindex-1][2]:
-                    if entry[2] > preventry[2]:
-                        chart[endindex] = entry
-                    if entry[2] <= preventry[2]:
-                        continue
-                else:
+        ## Iteratively fill in chart[i] for all i ##
+        while (len(heap) != 0):
+            
+            # pop the largest prob entry from heap
+            entry = heap[-1]
+            heap = heap[:-1]
+            
+            # find endindex of current text segmentation / startindex of next text segmentation
+            endindex = entry[1] + len(entry[0]) - 1
+            
+            # check chart[endindex] has preventry or not
+            if chart[endindex] is not None:
+                prevEntry = chart[endindex]
+                if entry[2] > prevEntry[2]:    # check the prob of two entries
                     chart[endindex] = entry
+                else:
+                    continue
+            else:
+                chart[endindex] = entry
+                
+                entryList = self.MatchWords(endindex + 1, text)
+                for currEntry in entryList:
+                    newEntry = (currEntry[0], currEntry[1], currEntry[2] + entry[2], endindex) # update prob 
+                    if newEntry not in heap:
+                        heap.append(newEntry)
 
-                # for each newword that matches input starting at position endindex+1
-
-                #                 for
-                newWordList = []
-                # count=0
-                for i in range(endindex + 1, len(text)):
-                    #                     print('text[i:i+count]',text[endindex+1:i+1])
-                    newWordList.append(text[endindex + 1:i + 1])
-
-                newWordList = newWordList[::-1]
-
-                # count+=1
-
-                # for each newword that matches input starting at position endindex+1
-
-                #     newentry = Entry(newword, endindex+1, entry.log-probability + logPw
-
-                # (newword), entry)
-                # if newentry does not exist in heap:
-
-                #     insert newentry into heap
-
-                for word in newWordList:
-                    newentry = (word, endindex + 1, entry[2] + log10(self.Pw(word)), entry[1])
-                    if newentry not in heap:
-                        heap.append(newentry)
-
-                heap.sort(key=lambda a: a[2])
-            #                         print('heap after append',heap)
-
-            #                 newWord = text[endindex+2]
-            #                 print('newWord', newWord)
-            #                 backptr = entry[1] # endindex - len(currentWord)
-            #                 newEntry = (newWord, endindex+1, chart[backptr][2] + log10(self.Pw(newWord)), backptr)
-            #                 print('heap', heap, 'newEntry',newEntry)
-            #                 if newEntry not in heap:
-            #                     print('we append heap really')
-            #                     heap.append(newEntry)
-            #                 print('heap after append',heap)
-
-            #             finalindex = len(text)
-            #             print('finalindex', finalindex)
-            #             finalentry = chart[finalindex]
-            #             print('finalentry', finalentry)
-            finalindex = len(text) - 1
-            finalentry = chart[finalindex]
-
-            while (finalentry[3] != None):
-                print("the final result: \n", finalentry)
-                finalentry = chart[finalentry[3]]
-
+        # use back pointer to trace the segmentation
+        finalEntry = chart[-1]
+        segmentation = []
+        segmentation.append(finalEntry[0])
+        while finalEntry[3] is not None:
+            finalEntry = chart[finalEntry[3]]
+            segmentation.append(finalEntry[0])
+        segmentation.reverse()
+            
         return segmentation
 
     def Pwords(self, words):
         "The Naive Bayes probability of a sequence of words."
         return product(self.Pw(w) for w in words)
+    
+    # insert new entries into a list which matches the position in input
+    def MatchWords(self, startPosition, text):
+        entryList = []
+        L = min((self.Pw).maxLength, len(text) - startPosition)  # L = min(maxlen, j) in order to avoid long words
+        for i in range(L):
+            currword = text[startPosition : startPosition + i + 1] # the current text segmentation
+            if currword in self.Pw:
+                entryList.append((currword, startPosition, log10(self.Pw(currword)), None)) # add the current entry
+        
+        # if words not in dictionary
+        if len(entryList) == 0:
+            for i in range(len(text) - startPosition):
+                if(i < 4):
+                    currword = text[startPosition : startPosition + i + 1]  
+                    entryList.append((currword, startPosition, log10(self.Pw(currword)), None)) 
+        return entryList
 
 
 #### Support functions (p. 224)
@@ -152,7 +98,8 @@ class Pdist(dict):
         for key, count in data:
             self[key] = self.get(key, 0) + int(count)
         self.N = float(N or sum(self.values()))
-        self.missingfn = missingfn or (lambda k, N: 1. / N)
+        self.maxLength = max(map(len, self.keys()))
+        self.missingfn = missingfn or (lambda k, N: 1./(N*8000**len(k))) # #same reason as A0, avoid long words
 
     def __call__(self, key):
         if key in self:
@@ -167,10 +114,6 @@ def datafile(name, sep='\t'):
         for line in fh:
             (key, value) = line.split(sep)
             yield (key, value)
-
-
-# def avoid_long_words(word, N):####################
-#     return 10./(N * 10**len(word))####################
 
 
 if __name__ == '__main__':
@@ -188,7 +131,6 @@ if __name__ == '__main__':
         logging.basicConfig(filename=opts.logfile, filemode='w', level=logging.DEBUG)
 
     Pw = Pdist(data=datafile(opts.counts1w))
-    #     Pw = Pdist(data=datafile(opts.counts1w), missingfn=avoid_long_words) ####################
     segmenter = Segment(Pw)
     with open(opts.input,'r', encoding='UTF-8') as f:
         for line in f:
